@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { StoreProvider } from "@/store";
 import Layout from "@/components/Layout";
+import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import DailyAttendanceUpload from "@/pages/DailyAttendanceUpload";
 import Employees from "@/pages/Employees";
@@ -51,6 +53,14 @@ function Router() {
 }
 
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    () => localStorage.getItem('hr_auth') === 'true'
+  );
+
+  if (!isLoggedIn) {
+    return <Login onLogin={() => setIsLoggedIn(true)} />;
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
