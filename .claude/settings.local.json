@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs -I {} basename {})",
+      "Bash(npx tsc *)",
+      "Read(//mnt/c/Users/lenovo/Downloads/**)",
+      "Bash(npm --version)",
+      "Bash(npm run *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\nodejs\\\\\" -ErrorAction SilentlyContinue | Select-Object Name; Get-ChildItem \"$env:APPDATA\\\\npm\\\\\" -ErrorAction SilentlyContinue | Select-Object -First 5 Name)",
+      "Bash(git -C \"/c/Users/lenovo/Downloads/hr-dashboard\" status)",
+      "Bash(git -C \"/c/Users/lenovo/Downloads/hr-dashboard\" remote -v)"
+    ]
+  }
+}
