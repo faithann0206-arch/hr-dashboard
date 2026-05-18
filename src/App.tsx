@@ -1,54 +1,32 @@
-import { useState } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { StoreProvider } from "@/store";
-import Layout from "@/components/Layout";
-import Login from "@/pages/Login";
-import Dashboard from "@/pages/Dashboard";
-import DailyAttendanceUpload from "@/pages/DailyAttendanceUpload";
-import Employees from "@/pages/Employees";
-import EmployeeProfile from "@/pages/EmployeeProfile";
-import AttendanceRecords from "@/pages/AttendanceRecords";
-import LeaveRecords from "@/pages/LeaveRecords";
-import ManagementDecisions from "@/pages/ManagementDecisions";
-import EmailLog from "@/pages/EmailLog";
-import PendingDocuments from "@/pages/PendingDocuments";
-import FollowUpCases from "@/pages/FollowUpCases";
-import DisciplinaryRegister from "@/pages/DisciplinaryRegister";
-import DailyTaskLog from "@/pages/DailyTaskLog";
-import Reports from "@/pages/Reports";
-import Settings from "@/pages/Settings";
-import OfficialLetters from "@/pages/OfficialLetters";
-import MonthlyTasksReport from "@/pages/MonthlyTasksReport";
-import NotFound from "@/pages/not-found";
+import { useState } from 'react';
+import { Switch, Route, Router as WouterRouter } from 'wouter';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from '@/components/ui/toaster';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { WtProvider } from '@/store/wt';
+import WtLayout from '@/components/WtLayout';
+import Login from '@/pages/Login';
+import WtDashboard from '@/pages/WtDashboard';
+import WtPendingItems from '@/pages/WtPendingItems';
+import WtOfficialLetters from '@/pages/WtOfficialLetters';
+import WtEmailLog from '@/pages/WtEmailLog';
+import WtAttendance from '@/pages/WtAttendance';
+import WtPolicyReader from '@/pages/WtPolicyReader';
 
 const queryClient = new QueryClient();
 
 function Router() {
   return (
-    <Layout>
+    <WtLayout>
       <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/upload" component={DailyAttendanceUpload} />
-        <Route path="/employees/:id" component={EmployeeProfile} />
-        <Route path="/employees" component={Employees} />
-        <Route path="/attendance" component={AttendanceRecords} />
-        <Route path="/leave" component={LeaveRecords} />
-        <Route path="/decisions" component={ManagementDecisions} />
-        <Route path="/email-log" component={EmailLog} />
-        <Route path="/pending-documents" component={PendingDocuments} />
-        <Route path="/cases" component={FollowUpCases} />
-        <Route path="/disciplinary" component={DisciplinaryRegister} />
-        <Route path="/tasks" component={DailyTaskLog} />
-        <Route path="/reports" component={Reports} />
-        <Route path="/official-letters" component={OfficialLetters} />
-        <Route path="/monthly-tasks" component={MonthlyTasksReport} />
-        <Route path="/settings" component={Settings} />
-        <Route component={NotFound} />
+        <Route path="/" component={WtDashboard} />
+        <Route path="/pending" component={WtPendingItems} />
+        <Route path="/letters" component={WtOfficialLetters} />
+        <Route path="/emails" component={WtEmailLog} />
+        <Route path="/attendance" component={WtAttendance} />
+        <Route path="/policy" component={WtPolicyReader} />
       </Switch>
-    </Layout>
+    </WtLayout>
   );
 }
 
@@ -64,11 +42,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <StoreProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <WtProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
             <Router />
           </WouterRouter>
-        </StoreProvider>
+        </WtProvider>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
