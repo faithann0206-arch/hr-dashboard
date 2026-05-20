@@ -746,15 +746,6 @@ export default function WtAttendance() {
                 </button>
 
                 <button
-                  onClick={handleDownload}
-                  disabled={aiLoading}
-                  className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors border border-slate-300"
-                >
-                  <Download size={14} />
-                  Download without AI
-                </button>
-
-                <button
                   onClick={handleClear}
                   className="flex items-center gap-2 text-red-600 hover:text-red-800 text-sm font-medium px-4 py-2 border border-red-200 hover:border-red-400 rounded-lg transition-colors"
                 >
