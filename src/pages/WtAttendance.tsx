@@ -51,12 +51,40 @@ function findHeaderRow(rows: unknown[][]): number {
   return 2; // fallback: row index 2 = row 3
 }
 
-function getEmployeeName(rows: unknown[][]): string {
-  // Try row 1 col B (index 1) — the sheet may have employee name there
-  if (rows.length > 0 && rows[0] && rows[0][1]) {
-    const name = String(rows[0][1]).trim();
-    if (name && name.length > 0 && name.toLowerCase() !== 'name') return name;
+function getEmployeeName(rows: unknown[][], sheetName: string): string {
+  // 1. Scan first 6 rows, cols A-D, for a standalone Arabic name
+  for (let r = 0; r < Math.min(6, rows.length); r++) {
+    const row = rows[r];
+    if (!row) continue;
+    for (let c = 0; c < Math.min(4, row.length); c++) {
+      const val = row[c];
+      if (!val) continue;
+      const str = String(val).trim();
+      if (str.length < 3 || str.length > 60) continue;
+      if (/^(date|day|time|name|employee)/i.test(str)) continue;
+      if (/^\d/.test(str)) continue;
+      // Has Arabic characters but is NOT the full title line
+      if (/[؀-ۿ]/.test(str) &&
+          !str.includes('كشف') && !str.includes('صندوق') &&
+          !str.includes('حضور') && !str.includes('الرقم')) {
+        return str;
+      }
+    }
   }
+
+  // 2. Extract from sheet name pattern: "Title- Employee Name- الرقم الوظيفي-N"
+  //    Split on any " - " or "- " boundary
+  const parts = sheetName.split(/\s*-\s*/);
+  for (let i = 1; i < parts.length; i++) {
+    const part = parts[i].trim();
+    if (part.length < 3) continue;
+    if (/[؀-ۿ]/.test(part) &&
+        !part.includes('الرقم') && !part.includes('الوظيفي') &&
+        !part.includes('كشف') && !part.includes('صندوق')) {
+      return part;
+    }
+  }
+
   return '';
 }
 
@@ -70,7 +98,7 @@ function parseSheet(
     defval: '',
   });
 
-  const employeeName = getEmployeeName(raw);
+  const employeeName = getEmployeeName(raw, sheetName);
   const headerRowIdx = findHeaderRow(raw);
   const dataRows = raw.slice(headerRowIdx + 1);
 
@@ -495,14 +523,15 @@ function SummaryRow({ emp }: { emp: WtAttendanceEmployee }) {
           <span className="text-green-700">{fmtMins(s.ptBalance)}</span>
         )}
       </td>
-      <td className="px-4 py-2.5 text-sm text-center">{s.missionCount}</td>
+      <td className="px-4 py-2.5 text-sm text-center">{s.leaveDates.length > 0 ? s.leaveDates.length : '—'}</td>
+      <td className="px-4 py-2.5 text-sm text-center">{s.missionCount > 0 ? s.missionCount : '—'}</td>
       <td className="px-4 py-2.5 text-sm text-center">
         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${s.status === 'Compliant' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
           {s.status}
         </span>
       </td>
       {emp.report ? (
-        <td className="px-4 py-2.5 text-xs text-green-600">Generated</td>
+        <td className="px-4 py-2.5 text-xs text-green-600 font-medium">✓ Ready</td>
       ) : (
         <td className="px-4 py-2.5 text-xs text-slate-400">—</td>
       )}
@@ -554,7 +583,8 @@ export default function WtAttendance() {
     reader.readAsArrayBuffer(selectedFile);
   }
 
-  async function handleGenerateReports() {
+
+  async function handleGenerateAndDownload() {
     const key = localApiKey.trim();
     if (!key) {
       alert('Please enter your Anthropic API key first.');
@@ -563,33 +593,44 @@ export default function WtAttendance() {
     if (key !== apiKey) setApiKey(key);
 
     setAiLoading(true);
+    const enriched: WtAttendanceEmployee[] = [];
+
     for (let i = 0; i < employees.length; i++) {
       const emp = employees[i];
       setAiStatus('Generating report ' + (i + 1) + ' of ' + employees.length + ': ' + (emp.employeeName || emp.sheetName) + '...');
       try {
         const result = await generateAiReport(emp, key);
-        updateAttEmployee(emp.sheetName, {
-          report: { ...result, generatedAt: new Date().toISOString() },
-        });
+        const updated = { ...emp, report: { ...result, generatedAt: new Date().toISOString() } };
+        enriched.push(updated);
+        updateAttEmployee(emp.sheetName, { report: updated.report });
       } catch (err) {
         console.warn('AI failed for', emp.sheetName, err);
         const result = fallbackReport(emp);
-        updateAttEmployee(emp.sheetName, {
-          report: { ...result, generatedAt: new Date().toISOString() },
-        });
+        const updated = { ...emp, report: { ...result, generatedAt: new Date().toISOString() } };
+        enriched.push(updated);
+        updateAttEmployee(emp.sheetName, { report: updated.report });
       }
     }
+
     setAiStatus('');
     setAiLoading(false);
+
+    // Download immediately with fresh enriched data
+    const html = buildWordDoc(enriched, reportMonth);
+    triggerDownload(html, reportMonth);
   }
 
   function handleDownload() {
     const html = buildWordDoc(employees, reportMonth);
+    triggerDownload(html, reportMonth);
+  }
+
+  function triggerDownload(html: string, month: string) {
     const blob = new Blob([html], { type: 'application/msword' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const [y, m] = reportMonth.split('-');
+    const [y, m] = month.split('-');
     a.download = 'Attendance_Report_' + y + '-' + m + '.doc';
     a.click();
     URL.revokeObjectURL(url);
@@ -694,22 +735,23 @@ export default function WtAttendance() {
                 />
               </div>
 
-              <div className="flex gap-2 mt-4">
+              <div className="flex flex-wrap gap-2 mt-4">
                 <button
-                  onClick={handleGenerateReports}
+                  onClick={handleGenerateAndDownload}
                   disabled={aiLoading}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors shadow-sm"
                 >
-                  {aiLoading ? <Loader2 size={14} className="animate-spin" /> : null}
-                  Generate AI reports
+                  {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                  Generate Word Report (.doc)
                 </button>
 
                 <button
                   onClick={handleDownload}
-                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                  disabled={aiLoading}
+                  className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors border border-slate-300"
                 >
                   <Download size={14} />
-                  Download .doc
+                  Download without AI
                 </button>
 
                 <button
@@ -745,6 +787,7 @@ export default function WtAttendance() {
                     <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Total late</th>
                     <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">PT used</th>
                     <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">PT balance</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Leave Days</th>
                     <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Missions</th>
                     <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
                     <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Report</th>
