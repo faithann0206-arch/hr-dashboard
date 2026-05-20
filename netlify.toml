@@ -1,12 +1,11 @@
 [build]
-  command = "npm run build"
+  command = "rm -rf node_modules && npm install && npm run build"
   publish = "dist/public"
 
 [build.environment]
   BASE_PATH = "/"
   PORT = "3000"
   NODE_VERSION = "18"
-  NPM_FLAGS = "--legacy-peer-deps"
 
 [[redirects]]
   from = "/*"
